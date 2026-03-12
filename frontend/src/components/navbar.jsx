@@ -42,7 +42,7 @@ const Navbar = () => {
                 <button
                   onClick={connectWallet}
                   style={{
-                    backgroundColor: '#f59e0b',
+                    backgroundColor: '#d59320ff',
                     color: 'white',
                     padding: '8px 14px',
                     borderRadius: '20px',
@@ -61,7 +61,7 @@ const Navbar = () => {
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: '#6b7280',
+                  color: '#000000ff',
                   cursor: 'pointer',
                   marginLeft: '15px',
                   fontSize: '0.9rem'
