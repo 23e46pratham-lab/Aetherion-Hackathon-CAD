@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Environment variables (NEVER commit these - they contain private keys & secrets)
+.env
+.env.local
+.env.*.local
+
+# Blockchain artifacts
+blockchain/cache/
+blockchain/artifacts/
+
+# Build output
+frontend/dist/
+frontend/build/
+
+# IDE / OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Lock files (optional - remove these lines if you want to track them)
+# package-lock.json
