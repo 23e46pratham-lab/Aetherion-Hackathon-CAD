@@ -24,3 +24,9 @@ Thumbs.db
 
 # Lock files (optional - remove these lines if you want to track them)
 # package-lock.json
+real.md
+
+
+#debug
+firebase_login_output.txt
+firebase-debug.log

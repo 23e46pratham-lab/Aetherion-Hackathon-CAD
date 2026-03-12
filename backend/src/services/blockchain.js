@@ -1,8 +1,11 @@
-// frontend/src/services/contract.js
+// backend/src/services/blockchain.js
 import { ethers } from 'ethers';
+import dotenv from 'dotenv';
 
-// Contract ABI - matches RealEstateNFT.sol
-export const REAL_ESTATE_ABI = [
+dotenv.config();
+
+// RealEstate Contract ABI (minimal for backend operations)
+const REAL_ESTATE_ABI = [
     {
         "inputs": [
             { "internalType": "uint256", "name": "_pricePerShare", "type": "uint256" },
@@ -83,66 +86,83 @@ export const REAL_ESTATE_ABI = [
     }
 ];
 
-// Contract address from environment
-export const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS;
-
-// Polygon Amoy configuration
-export const AMOY_CONFIG = {
-    chainId: '0x13882', // 80002 in hex
-    chainName: 'Polygon Amoy Testnet',
-    nativeCurrency: {
-        name: 'POL',
-        symbol: 'POL',
-        decimals: 18
-    },
-    rpcUrls: ['https://rpc-amoy.polygon.technology'],
-    blockExplorerUrls: ['https://amoy.polygonscan.com/']
-};
+// Contract address - update after deployment
+let CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || null;
 
 /**
- * Get contract instance with signer
+ * Get provider for Polygon Amoy
  */
-export function getContract(signer) {
-    if (!CONTRACT_ADDRESS || CONTRACT_ADDRESS === '0xYourDeployedContractAddressHere') {
-        console.warn('Contract address not configured');
-        return null;
-    }
-    return new ethers.Contract(CONTRACT_ADDRESS, REAL_ESTATE_ABI, signer);
+export function getProvider() {
+    const rpcUrl = process.env.RPC_URL || 'https://rpc-amoy.polygon.technology';
+    return new ethers.JsonRpcProvider(rpcUrl);
 }
 
 /**
- * List new property on blockchain
+ * Get admin wallet (signer)
  */
-export async function listProperty(signer, pricePerShareMatic, totalShares, metadataUri) {
-    const contract = getContract(signer);
-    if (!contract) throw new Error('Contract not configured');
+export function getAdminWallet() {
+    const provider = getProvider();
+    const privateKey = process.env.PRIVATE_KEY;
 
+    if (!privateKey) {
+        throw new Error('Admin private key not configured');
+    }
+
+    return new ethers.Wallet(privateKey, provider);
+}
+
+/**
+ * Get contract instance
+ */
+export function getContract(signerOrProvider = null) {
+    if (!CONTRACT_ADDRESS) {
+        throw new Error('Contract address not configured. Deploy the contract first.');
+    }
+
+    const provider = signerOrProvider || getProvider();
+    return new ethers.Contract(CONTRACT_ADDRESS, REAL_ESTATE_ABI, provider);
+}
+
+/**
+ * Set contract address (after deployment)
+ */
+export function setContractAddress(address) {
+    CONTRACT_ADDRESS = address;
+}
+
+/**
+ * List property on blockchain (admin only)
+ */
+export async function listPropertyOnChain(pricePerShareMatic, totalShares, metadataUri) {
+    const wallet = getAdminWallet();
+    const contract = getContract(wallet);
+
+    // Convert MATIC to Wei
     const priceInWei = ethers.parseEther(pricePerShareMatic.toString());
+
     const tx = await contract.listProperty(priceInWei, totalShares, metadataUri);
     const receipt = await tx.wait();
 
-    return {
-        success: true,
-        txHash: receipt.hash,
-        blockNumber: receipt.blockNumber
-    };
-}
+    // Get property ID from event
+    const event = receipt.logs.find(log => {
+        try {
+            const parsed = contract.interface.parseLog(log);
+            return parsed.name === 'PropertyListed';
+        } catch {
+            return false;
+        }
+    });
 
-/**
- * Buy shares of a property
- */
-export async function buyShares(signer, propertyId, sharesToBuy, totalCostMatic) {
-    const contract = getContract(signer);
-    if (!contract) throw new Error('Contract not configured');
-
-    const costInWei = ethers.parseEther(totalCostMatic.toString());
-
-    const tx = await contract.buyShares(propertyId, sharesToBuy, { value: costInWei });
-    const receipt = await tx.wait();
+    let propertyId = null;
+    if (event) {
+        const parsed = contract.interface.parseLog(event);
+        propertyId = parsed.args.id.toString();
+    }
 
     return {
         success: true,
         txHash: receipt.hash,
+        propertyId: propertyId,
         blockNumber: receipt.blockNumber
     };
 }
@@ -150,8 +170,8 @@ export async function buyShares(signer, propertyId, sharesToBuy, totalCostMatic)
 /**
  * Get property details from blockchain
  */
-export async function getProperty(provider, propertyId) {
-    const contract = new ethers.Contract(CONTRACT_ADDRESS, REAL_ESTATE_ABI, provider);
+export async function getPropertyFromChain(propertyId) {
+    const contract = getContract();
     const property = await contract.properties(propertyId);
 
     return {
@@ -159,69 +179,51 @@ export async function getProperty(provider, propertyId) {
         pricePerShare: ethers.formatEther(property.pricePerShare),
         totalShares: property.totalShares.toString(),
         sharesSold: property.sharesSold.toString(),
-        availableShares: (property.totalShares - property.sharesSold).toString(),
         owner: property.owner,
         isActive: property.isActive
     };
 }
 
 /**
- * Get user's shares for a property
+ * Get total number of properties
  */
-export async function getUserShares(provider, propertyId, userAddress) {
-    const contract = new ethers.Contract(CONTRACT_ADDRESS, REAL_ESTATE_ABI, provider);
-    const shares = await contract.userShares(propertyId, userAddress);
-    return shares.toString();
+export async function getPropertyCount() {
+    const contract = getContract();
+    const count = await contract.nextPropertyId();
+    return count.toString();
 }
 
 /**
- * Check if MetaMask is on correct network
+ * Check network connection
  */
-export async function checkNetwork() {
-    if (!window.ethereum) return { correct: false, error: 'No wallet detected' };
-
-    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-    return {
-        correct: chainId === AMOY_CONFIG.chainId,
-        currentChainId: chainId,
-        requiredChainId: AMOY_CONFIG.chainId
-    };
-}
-
-/**
- * Switch to Polygon Amoy network
- */
-export async function switchToAmoy() {
-    if (!window.ethereum) throw new Error('No wallet detected');
-
+export async function checkConnection() {
     try {
-        await window.ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: AMOY_CONFIG.chainId }]
-        });
-        return { success: true };
-    } catch (switchError) {
-        if (switchError.code === 4902) {
-            // Add network
-            await window.ethereum.request({
-                method: 'wallet_addEthereumChain',
-                params: [AMOY_CONFIG]
-            });
-            return { success: true, added: true };
-        }
-        throw switchError;
+        const provider = getProvider();
+        const network = await provider.getNetwork();
+        const blockNumber = await provider.getBlockNumber();
+
+        return {
+            connected: true,
+            network: network.name,
+            chainId: network.chainId.toString(),
+            blockNumber: blockNumber
+        };
+    } catch (error) {
+        return {
+            connected: false,
+            error: error.message
+        };
     }
 }
 
 export default {
-    REAL_ESTATE_ABI,
-    CONTRACT_ADDRESS,
-    AMOY_CONFIG,
+    getProvider,
+    getAdminWallet,
     getContract,
-    listProperty,
-    buyShares,
-    getProperty,
-    getUserShares,
-    checkNetwork,
-    switchToAmoy
+    setContractAddress,
+    listPropertyOnChain,
+    getPropertyFromChain,
+    getPropertyCount,
+    checkConnection,
+    REAL_ESTATE_ABI
 };
