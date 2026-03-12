@@ -11,7 +11,7 @@ const Navbar = () => {
   return (
     <nav className="navbar">
       <div className="container flex justify-between" style={{ height: '100%' }}>
-        <Link to="/" className="nav-logo">BlockEstate</Link>
+        <Link to="/" className="nav-logo">Brickora</Link>
 
         <div className="nav-links flex" style={{ alignItems: 'center' }}>
           <a href="/#process">How it Works</a>
