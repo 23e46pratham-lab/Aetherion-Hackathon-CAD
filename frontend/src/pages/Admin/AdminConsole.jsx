@@ -1,7 +1,7 @@
 // frontend/src/pages/Admin/AdminConsole.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { collection, getDocs, doc, updateDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, setDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useWallet } from '../../context/WalletContext';
@@ -84,20 +84,29 @@ const AdminConsole = () => {
     const approveAndUpload = async (request) => {
         setActionLoading(true);
         try {
-            // Create property in main properties collection
-            const propertyRef = doc(db, 'properties', request.id);
+            // 1. Create property in main properties collection
+            const propertyId = `prop_${Date.now()}`;
+            await setDoc(doc(db, 'properties', propertyId), {
+                ...request,
+                id: propertyId,
+                status: 'TOKENIZED',
+                isVerified: true,
+                approvedAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+                availableShares: request.totalShares,
+                resaleHistory: [],
+                resaleCount: 0
+            });
+
+            // 2. Update request status in propertyRequests collection
             await updateDoc(doc(db, 'propertyRequests', request.id), {
                 status: 'APPROVED',
                 approvedAt: serverTimestamp(),
-                certificateGenerated: true
+                certificateGenerated: true,
+                propertyId: propertyId // Reference to the public listing
             });
 
-            // In a real app, this would:
-            // 1. Generate a verification certificate
-            // 2. Send email to seller with certificate
-            // 3. Mint NFT on blockchain
-
-            alert('Property approved! Certificate generated and email sent to seller.');
+            alert('Property approved! Listing is now live in the marketplace.');
 
             // Refresh data
             window.location.reload();
@@ -217,7 +226,9 @@ const AdminConsole = () => {
                                                         )}
                                                         <div>
                                                             <div style={{ fontWeight: '600' }}>{request.title || 'Untitled'}</div>
-                                                            <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>{request.location}</div>
+                                                            <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+                                                                {typeof request.location === 'string' ? request.location : (request.location?.address || 'N/A')}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -324,7 +335,7 @@ const AdminConsole = () => {
                                 <div key={property.id} className="card" style={{ padding: 0, overflow: 'hidden' }}>
                                     <div style={{ height: '140px', overflow: 'hidden' }}>
                                         <img
-                                            src={property.imageUrl || 'https://via.placeholder.com/300x150'}
+                                            src={property.mainImageUrl || property.imageUrl || 'https://placehold.co/400x200?text=Property'}
                                             alt={property.title}
                                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                         />
@@ -332,7 +343,7 @@ const AdminConsole = () => {
                                     <div style={{ padding: '16px' }}>
                                         <h4 style={{ marginBottom: '5px', fontWeight: '600' }}>{property.title}</h4>
                                         <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '10px' }}>
-                                            {property.location}
+                                            {typeof property.location === 'string' ? property.location : (property.location?.address || 'N/A')}
                                         </p>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                                             <span>{property.pricePerShare} MATIC/share</span>
@@ -393,7 +404,7 @@ const AdminConsole = () => {
                             <div style={{ marginBottom: '20px' }}>
                                 <h4 style={{ fontWeight: '600', marginBottom: '10px' }}>{selectedRequest.title}</h4>
                                 <p style={{ color: '#6b7280', marginBottom: '10px' }}>{selectedRequest.description}</p>
-                                <p><strong>Location:</strong> {selectedRequest.location}</p>
+                                <p><strong>Location:</strong> {typeof selectedRequest.location === 'string' ? selectedRequest.location : (selectedRequest.location?.address || 'N/A')}</p>
                                 <p><strong>Price/Share:</strong> {selectedRequest.pricePerShare} MATIC</p>
                                 <p><strong>Total Shares:</strong> {selectedRequest.totalShares}</p>
                                 <p><strong>Seller:</strong> {selectedRequest.sellerEmail}</p>

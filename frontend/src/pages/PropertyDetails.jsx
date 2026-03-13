@@ -39,7 +39,6 @@ const PropertyDetails = () => {
                 if (docSnap.exists()) {
                     setProperty({ id: docSnap.id, ...docSnap.data() });
                 } else {
-                    // Try demo properties
                     console.log('Property not found in Firestore');
                 }
             } catch (error) {
@@ -139,7 +138,7 @@ const PropertyDetails = () => {
                             marginBottom: '15px'
                         }}>
                             <img
-                                src={property.images?.[selectedImage]?.url || property.mainImageUrl || 'https://via.placeholder.com/800x400'}
+                                src={property.images?.[selectedImage]?.url || property.mainImageUrl || 'https://placehold.co/800x400?text=Property'}
                                 alt={property.title}
                                 style={{ width: '100%', height: '400px', objectFit: 'cover' }}
                             />
@@ -179,7 +178,9 @@ const PropertyDetails = () => {
                                 borderRadius: '20px',
                                 fontSize: '0.85rem'
                             }}>
-                                📍 {property.location?.address?.split(',').slice(0, 2).join(',')}
+                                📍 {typeof property.location === 'string' 
+                                    ? property.location.split(',').slice(0, 2).join(',') 
+                                    : (property.location?.address || 'N/A').split(',').slice(0, 2).join(',')}
                             </span>
                             <span style={{
                                 backgroundColor: '#f3f4f6',
@@ -209,7 +210,7 @@ const PropertyDetails = () => {
                                 <h3 style={{ marginBottom: '15px', fontWeight: '600' }}>Location</h3>
                                 <div style={{ height: '250px', borderRadius: '12px', overflow: 'hidden' }}>
                                     <MapContainer
-                                        center={[property.location.lat, property.location.lng]}
+                                        center={[property.location?.lat || 0, property.location?.lng || 0]}
                                         zoom={15}
                                         style={{ height: '100%', width: '100%' }}
                                     >

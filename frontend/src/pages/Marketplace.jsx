@@ -34,46 +34,10 @@ const Marketplace = () => {
   }, []);
 
   // Filter properties based on search
-  const filteredProperties = properties.filter(property =>
+  const displayProperties = properties.filter(property =>
     property.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    property.location?.toLowerCase().includes(searchTerm.toLowerCase())
+    (typeof property.location === 'string' ? property.location : property.location?.address)?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  // Mock properties for demo when database is empty
-  const DEMO_PROPERTIES = [
-    {
-      id: 'demo1',
-      title: 'Luxury Beach Villa',
-      location: 'Goa, India',
-      pricePerShare: 0.5,
-      totalShares: 1000,
-      availableShares: 850,
-      imageUrl: 'https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=400&q=80',
-      status: 'TOKENIZED'
-    },
-    {
-      id: 'demo2',
-      title: 'Downtown Apartment Complex',
-      location: 'Mumbai, Maharashtra',
-      pricePerShare: 0.25,
-      totalShares: 2000,
-      availableShares: 1200,
-      imageUrl: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=400&q=80',
-      status: 'TOKENIZED'
-    },
-    {
-      id: 'demo3',
-      title: 'Tech Park Office Space',
-      location: 'Bangalore, Karnataka',
-      pricePerShare: 1.0,
-      totalShares: 500,
-      availableShares: 320,
-      imageUrl: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=400&q=80',
-      status: 'TOKENIZED'
-    }
-  ];
-
-  const displayProperties = filteredProperties.length > 0 ? filteredProperties : DEMO_PROPERTIES;
 
   return (
     <div>
@@ -141,7 +105,7 @@ const Marketplace = () => {
                     position: 'relative'
                   }}>
                     <img
-                      src={property.imageUrl || 'https://via.placeholder.com/400x200'}
+                      src={property.mainImageUrl || property.imageUrl || 'https://placehold.co/400x200?text=Property'}
                       alt={property.title}
                       style={{
                         width: '100%',
@@ -179,7 +143,7 @@ const Marketplace = () => {
                       color: '#6b7280',
                       marginBottom: '15px'
                     }}>
-                      📍 {property.location}
+                      📍 {typeof property.location === 'string' ? property.location : (property.location?.address || 'N/A')}
                     </p>
 
                     {/* Progress Bar */}

@@ -78,7 +78,7 @@ const SellProperty = () => {
                     imageUrl = res.data.url;
                 } catch {
                     // Use placeholder if upload fails
-                    imageUrl = `https://via.placeholder.com/400x300?text=${encodeURIComponent(form.title)}`;
+                    imageUrl = `https://placehold.co/400x300?text=${encodeURIComponent(form.title)}`;
                 }
             }
 
